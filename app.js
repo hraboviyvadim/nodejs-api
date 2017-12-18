@@ -57,7 +57,8 @@ userSchema.virtual('password').set(function(password) {
   this._plainPassword = password;
   if(password) {
     this.salt = crypto.randomBytes(128).toString('base64');
-    this.passwordHash = crypto.pbkdf2Sync(password, this.salt, 1, 128, 'sha1');
+    //this.passwordHash = crypto.pbkdf2Sync(password, this.salt, 1, 128, 'sha512');
+    this.passwordHash = password;
   } else {
     this.salt = undefined;
     this.passwordHash = undefined;
@@ -69,18 +70,30 @@ userSchema.virtual('password').get(function() {
 userSchema.methods.checkPAssword = function (password) {
   if (!password) return false;
   if (!this.passwordHash) return false;
-  return crypto.pbkdf2Sync(password, this.salt, 1, 128, 'sha1') === this.passwordHash;
+  //return crypto.pbkdf2Sync(password, this.salt, 1, 128, 'sha512') === this.passwordHash;
+  return password === this.passwordHash;
 };
 const User = mongoose.model('User', userSchema);
 
 // passport strategies
+passport.serializeUser(function(user, done) {
+  done(null, user);
+});
+
+
+passport.deserializeUser(function(email, done) {
+  User.findOne({email: email}, function(err,user){
+    err ? done(err) : done(null,user);
+  });
+});
 passport.use(new LocalStrategy({
   usernameField: 'email',
   passwordField: 'password',
   session: false
 }, function (email, password, done) {
-  User.findOne({email}, (err, user) => {
+  User.findOne({email: email}, (err, user) => {
     if (err) {
+      console.log('error =>', err);
       return done(err);
     }
     if(!user || !user.checkPAssword(password)) {
@@ -101,9 +114,9 @@ passport.use(new JwtStrategy(jwtOptions, function (payload, done) {
       return done(err);
     }
     if(user) {
-      done(null, user);
+      return done(null, user);
     } else {
-      done(null, false);
+      return done(null, false);
     }
   })
 }));
@@ -121,31 +134,24 @@ app.post('/user', (req, res) => {
     }
   });
 });
-app.post('/login', passport.authenticate('local', (err, user) => {
-  if (err) {
-    return err;
+app.post('/login', passport.authenticate('local'), (req, res) => {
+  //console.log('req =>', req.user);
+  //res.status(200).send(req.user);
+  if(req.user) {
+    const payload = {
+      displayName: req.user.displayName,
+      email: req.user.email
+    };
+    const token = jwt.sign(payload, jwtsecret);
+    res.status(200).json({user: req.user.displayName, token: token});
   } else {
-    if(user) {
-      const payload = {
-        id: user.id,
-        displayName: user.displayName,
-        email: user.email
-      };
-      const token = jwt.sign(payload, jwtsecret);
-      return {user: user.displayName, token: 'JWT ' + token};
-    } else {
-      return 'Login failed!';
-    }
+    res.status(401).send('Login failed!');
   }
-}));
-app.get('/custom', passport.authenticate('jwt'), function (err, user) {
-  if(err) {
-    return err;
+});
+app.get('/custom', passport.authenticate('jwt'), function (req, res) {
+  if(!req.user) {
+    res.send('No such user');
   } else {
-    if (user) {
-      return 'Hello ' + user.displayName;
-    } else {
-      return 'No such user';
-    }
+      res.send('Hello ' + req.user.displayName);
   }
 });
