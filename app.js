@@ -4,8 +4,8 @@ const bodyParser = require('body-parser');
 // passport.js
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
-const JwtStrategy = require('passport-jwt').Strategy;
-const ExtractJwt = require('passport-jwt').ExtractJwt;
+// const JwtStrategy = require('passport-jwt').Strategy;
+// const ExtractJwt = require('passport-jwt').ExtractJwt;
 const jwt = require('jsonwebtoken');
 
 // Mongo database
@@ -67,7 +67,7 @@ userSchema.virtual('password').set(function(password) {
 userSchema.virtual('password').get(function() {
   return this._plainPassword;
 });
-userSchema.methods.checkPAssword = function (password) {
+userSchema.methods.checkPassword = function (password) {
   if (!password) return false;
   if (!this.passwordHash) return false;
   //return crypto.pbkdf2Sync(password, this.salt, 1, 128, 'sha512') === this.passwordHash;
@@ -93,10 +93,9 @@ passport.use(new LocalStrategy({
 }, function (email, password, done) {
   User.findOne({email: email}, (err, user) => {
     if (err) {
-      console.log('error =>', err);
       return done(err);
     }
-    if(!user || !user.checkPAssword(password)) {
+    if(!user || !user.checkPassword(password)) {
       return done(null, false, {
         message: 'This user doesnt exist or password is incorrect'
       });
@@ -104,22 +103,41 @@ passport.use(new LocalStrategy({
     return done(null, user);
   });
 }));
-const jwtOptions = {
-  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-  secretOrKey: jwtsecret
+// const jwtOptions = {
+//   jwtFromRequest: ExtractJwt.fromHeader('token'),
+//   secretOrKey: jwtsecret
+// };
+// passport.use(new JwtStrategy(jwtOptions, function (payload, done) {
+//   console.log(payload);
+//   User.findById(payload.id, (err, user) => {
+//     if (err) {
+//       return done(err, false);
+//     }
+//     if(user) {
+//       return done(null, user);
+//     } else {
+//       return done(null, false);
+//     }
+//   })
+// }));
+
+const verifyToken = (req, res, next) => {
+  const token = req.body.token || req.query.token || req.headers['token'] || '';
+  if(token) {
+    jwt.verify(token, jwtsecret, (err, decoded) => {
+      if(err) {
+        return res.json({error: true, message: 'token verification failed!'});
+      }
+      req.decoded = decoded;
+      console.log(decoded);
+      next()
+    })
+  } else {
+    return res.status(403).send({
+      error: true
+    })
+  }
 };
-passport.use(new JwtStrategy(jwtOptions, function (payload, done) {
-  User.findById(payload.id, (err, user) => {
-    if (err) {
-      return done(err);
-    }
-    if(user) {
-      return done(null, user);
-    } else {
-      return done(null, false);
-    }
-  })
-}));
 
 // Auth API
 app.get('/', (req, res) => {
@@ -135,20 +153,18 @@ app.post('/user', (req, res) => {
   });
 });
 app.post('/login', passport.authenticate('local'), (req, res) => {
-  //console.log('req =>', req.user);
-  //res.status(200).send(req.user);
   if(req.user) {
     const payload = {
       displayName: req.user.displayName,
       email: req.user.email
     };
     const token = jwt.sign(payload, jwtsecret);
-    res.status(200).json({user: req.user.displayName, token: token});
+    res.status(200).json({error: false, user: req.user.displayName, token: token});
   } else {
     res.status(401).send('Login failed!');
   }
 });
-app.get('/custom', passport.authenticate('jwt'), function (req, res) {
+app.get('/custom', verifyToken, function (req, res) {
   if(!req.user) {
     res.send('No such user');
   } else {
