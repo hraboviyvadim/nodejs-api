@@ -4,8 +4,6 @@ const bodyParser = require('body-parser');
 // passport.js
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
-// const JwtStrategy = require('passport-jwt').Strategy;
-// const ExtractJwt = require('passport-jwt').ExtractJwt;
 const jwt = require('jsonwebtoken');
 
 // Mongo database
@@ -103,38 +101,21 @@ passport.use(new LocalStrategy({
     return done(null, user);
   });
 }));
-// const jwtOptions = {
-//   jwtFromRequest: ExtractJwt.fromHeader('token'),
-//   secretOrKey: jwtsecret
-// };
-// passport.use(new JwtStrategy(jwtOptions, function (payload, done) {
-//   console.log(payload);
-//   User.findById(payload.id, (err, user) => {
-//     if (err) {
-//       return done(err, false);
-//     }
-//     if(user) {
-//       return done(null, user);
-//     } else {
-//       return done(null, false);
-//     }
-//   })
-// }));
 
 const verifyToken = (req, res, next) => {
-  const token = req.body.token || req.query.token || req.headers['token'] || '';
+  const token = req.body.token || req.query.token || req.headers['x-access-token'];
   if(token) {
     jwt.verify(token, jwtsecret, (err, decoded) => {
       if(err) {
         return res.json({error: true, message: 'token verification failed!'});
       }
       req.decoded = decoded;
-      console.log(decoded);
-      next()
+      next();
     })
   } else {
-    return res.status(403).send({
-      error: true
+    return res.status(403).json({
+      error: true,
+      message: 'no token verification'
     })
   }
 };
@@ -164,10 +145,10 @@ app.post('/login', passport.authenticate('local'), (req, res) => {
     res.status(401).send('Login failed!');
   }
 });
-app.get('/custom', verifyToken, function (req, res) {
-  if(!req.user) {
+app.get('/protected', verifyToken, function (req, res) {
+  if(!req.decoded) {
     res.send('No such user');
   } else {
-      res.send('Hello ' + req.user.displayName);
+      res.json('Hello ' + req.decoded.displayName);
   }
 });
