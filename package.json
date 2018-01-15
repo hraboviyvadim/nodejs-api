@@ -1,7 +1,10 @@
 {
-  "name": "coffee-radar-api",
+  "name": "api-e-wallet",
   "version": "1.0.0",
-  "description": "API on express.js + mongoDB",
+  "engines": {
+    "node": "8.9.4"
+  },
+  "description": "API for e-wallet based on express.js + mongoDB",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",

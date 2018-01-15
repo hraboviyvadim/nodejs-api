@@ -23,12 +23,13 @@ const server = app.listen({host: 'localhost', port}, () => {
 });
 
 mongoose.Promise = Promise;
+const dbURL = process.env.MONGODB_URI || 'mongodb://admin:admin@ds125774.mlab.com:25774/test_db';
 const dbOptions = {
   promiseLibrary: Promise,
   useMongoClient: true,
 };
 mongoose.set('debug', true);
-mongoose.connect('mongodb://admin:admin@ds125774.mlab.com:25774/test_db', dbOptions).then(() => {
+mongoose.connect(dbURL, dbOptions).then(() => {
   console.log(`Connection to MongoDB opened successfully!`);
 });
 
