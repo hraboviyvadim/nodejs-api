@@ -11,14 +11,15 @@ const mongoose = require('mongoose');
 const crypto = require('crypto');
 
 // constants
-const port = 3000;
+const port = process.env.PORT || 3000;
 const jwtsecret = 'mysecretkey';
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(passport.initialize());
-const server = app.listen({host: 'localhost', port}, () => {
+// const server = app.listen({host: 'localhost', port}, () => {
+const server = app.listen(port, () => {
   console.log('We are live on ' + server.address().address + ':' + server.address().port);
 });
 
