@@ -6,7 +6,6 @@ const userSchema = new mongoose.Schema({
   displayName: {
     type: String,
     unique: true,
-    required: [true, 'can\'t be blank'],
     match: [/^[a-zA-Z0-9]+$/, 'is invalid'],
     index: true
   },
@@ -40,4 +39,5 @@ userSchema.methods.checkPassword = function (password) {
   //return crypto.pbkdf2Sync(password, this.salt, 1, 128, 'sha512') === this.passwordHash;
   return password === this.passwordHash;
 };
-const User = mongoose.model('User', userSchema);
+
+module.exports = mongoose.model('User', userSchema);
